@@ -298,12 +298,14 @@ class OctLayers(object):
             self.octdata = centered_octdata
     
     def setOrient(self,target='OD'):
+        """Modify the autodetected orientation of the recording"""
         assert self.laterality, 'Original laterality not defined'
         if self.laterality != target:
             self.data = self.data[:,:,::-1]
             self.laterality = target
     
     def getThickness(self, surface1, surface2, mask = True):
+        """Calculates the thickness between two surfaces"""
         thickness = np.ma.MaskedArray(np.abs(self.data.data[surface1,:,:] - self.data.data[surface2,:,:]))
         if surface1 == 0 and surface2 == 10:
             # getting total thickness, no need to mask center?
@@ -317,6 +319,7 @@ class OctLayers(object):
         return thickness
     
     def genEtdrsRings(self):
+        """generate a mask template for etdrs regions"""
         if self.voxel_size:
             #if we have loaded from xml file we can go this route
             pixSizeX = self.voxel_size['x'] / 1000
@@ -387,6 +390,7 @@ class OctLayers(object):
         return etdrsMask
     
     def getEtdrsThickness(self, surface1, surface2, applyMask):
+        """Calculate layer thickness values for edtrs regions"""
         layer = self.getThickness(surface1, surface2, applyMask)
         output = []
         for iRegion in np.arange(1,10):
@@ -430,8 +434,22 @@ class OctLayers(object):
         
         regions = pd.Series(regions)
         return regions
-            
+    
+    def overlayLayers(self):
+        """overlay surfaces onto raw oct images
+        returns an np.array[bscans,depth,ascans]"""
+        if self.data is None:
+            raise RuntimeError('Surface data not loaded')
+        if self.octdata is None:
+            raise RuntimeError('Raw oct images not loaded')
         
+        oct = np.copy(self.octdata)
+        for surface in range(self.data.shape[0]):
+            for frame in range(self.data.shape[1]):
+                for i,v in enumerate(self.rawdata[surface,frame,:]):
+                    oct[frame,v-2:v+2,i]=255
+        return oct
+
 class OctCollection(object):
     
     def __init__(self,folder = None, laterality='OD',nmax=None):
