@@ -26,10 +26,10 @@ class OctLayers(object):
         self.center_filename = None # full path to the iowa grid_centers xml file
         
         self.data = None            # numpy masked array holding the iowa surface coordinate information
-                                    #  [nLayers x bscans x ascans]
+                                    #  [nLayers x bscans x ascans] in pixels
         self.etdrs = None           # numpy array holding mask for edtrs regions
                                     #  [bscans x ascans]
-        self.rawdata = None         # as self.data but not affected by centering
+
         self.octdata = None         # OCT scan data
                                     #  [ascans x depth x bscans]
 
@@ -113,18 +113,11 @@ class OctLayers(object):
                            'z': float(xml_root.find('./scan_characteristics/voxel_size/z').text)}
         
         # structure to hold layer measurements
-        # data in this structure is in microns and can be used by the centering function
+        # data in this structure is in pixels and can be used by the centering function
         self.data = np.empty((11,
                               self.scan_size['y'],
                               self.scan_size['x']),
-                            dtype=np.float)
-
-        # structure to hold layer measurements
-        # data in this structure is in voxels
-        self.rawdata = np.empty((11,
-                              self.scan_size['y'],
-                              self.scan_size['x']),
-                             dtype=np.int)        
+                             dtype=np.float)
 
         p = re.compile('.*\((.*)\)')
         for surface in xml_root.findall('surface'):
@@ -148,19 +141,10 @@ class OctLayers(object):
             surface_bscans = surface.findall('bscan')
             for bscan_idx in range(self.data.shape[1]):
                 bscan = surface_bscans[bscan_idx]
-                #convert voxels to microns
-                #if self.system == 'cirrus':
-                    #voxel_depth = 1.96
-                #elif self.system == 'bioptigen':
-                    #voxel_depth = 2.39
-                voxel_depth = self.voxel_size['z']
-                
-                self.data[surface_idx,bscan_idx,:] = \
-                    [float(z.text) * voxel_depth for z in bscan.findall('z')]
-                
-                self.rawdata[surface_idx,bscan_idx,:] = \
-                    [int(z.text) for z in bscan.findall('z')]                
 
+                self.data[surface_idx,bscan_idx,:] = \
+                    [int(z.text) for z in bscan.findall('z')]                
+                
         undef_mask = np.zeros(self.data.shape,dtype=np.bool)
         undef_xml = xml_root.find('undefined_region')
         
@@ -305,8 +289,10 @@ class OctLayers(object):
             self.laterality = target
     
     def getThickness(self, surface1, surface2, mask = True):
-        """Calculates the thickness between two surfaces"""
+        """Calculates the thickness between two surfaces
+        return values are in microns"""
         thickness = np.ma.MaskedArray(np.abs(self.data.data[surface1,:,:] - self.data.data[surface2,:,:]))
+        thickness = thickness * self.voxel_size['z']
         if surface1 == 0 and surface2 == 10:
             # getting total thickness, no need to mask center?
             mask = False
@@ -446,7 +432,7 @@ class OctLayers(object):
         oct = np.copy(self.octdata)
         for surface in range(self.data.shape[0]):
             for frame in range(self.data.shape[1]):
-                for i,v in enumerate(self.rawdata[surface,frame,:]):
+                for i,v in enumerate(self.data[surface,frame,:]):
                     oct[frame,v-2:v+2,i]=255
         return oct
 
