@@ -36,7 +36,7 @@ class OctLayers(object):
         self.center_x = None        # int, holding x coordinate of the scan center from grid_centers.xml
         self.center_y = None        # int, holding y coordinate of the scan center from grid_centers.xml
         self.laterality = None      # eye ('OD'|'OS)
-        self.scan_size = None      # Dict {x,y,z} size of scan in pixels
+        self.scan_size = None       # Dict {x,y,z} size of scan in pixels
         self.voxel_size = None      # Dict {x,y,z} size of voxels in microns
 
         if 'system' in kargs.keys():
@@ -375,11 +375,73 @@ class OctLayers(object):
               
         return etdrsMask
     
+    def getEtdrsIntensity(self, surface1, surface2, applyMask):
+        """Calculate layer intensity values for etdrs regions"""
+        layer_mask = self.getOctLayerMask(surface1, surface2, applyMask)
+        # make the 2D etdrs mask into a 3d cube same shape as layer_mask
+        etdrs_mask = self.etdrs[:, np.newaxis, :]
+        etdrs_mask = np.repeat(etdrs_mask, layer_mask.shape[1], 1)
+        
+        output = []
+        
+        for iRegion in np.arange(1, 10):
+            lr_mask = np.logical_and(layer_mask,etdrs_mask==iRegion) #layer / region mask
+            output.append(np.mean(self.octdata[lr_mask]))
+            
+        # get inner ring values
+        ring_mask = np.logical_or.reduce((self.etdrs==2,
+                                          self.etdrs==3,
+                                          self.etdrs==4,
+                                          self.etdrs==5))
+        ring_mask = ring_mask[:, np.newaxis, :]
+        ring_mask = np.repeat(ring_mask, layer_mask.shape[1], 1)
+        lr_mask = np.logical_and(layer_mask, ring_mask)  #layer / region mask
+        output.append(np.mean(self.octdata[lr_mask]))
+        
+        # get outer ring values
+        ring_mask = np.logical_or.reduce((self.etdrs==6,
+                                          self.etdrs==7,
+                                          self.etdrs==8,
+                                          self.etdrs==9))
+        
+        ring_mask = ring_mask[:, np.newaxis, :]
+        ring_mask = np.repeat(ring_mask, layer_mask.shape[1], 1)
+        lr_mask = np.logical_and(layer_mask, ring_mask)  #layer / region mask
+        output.append(np.mean(self.octdata[lr_mask]))
+        
+        # get macular values
+        mac_mask = self.etdrs > 0
+        mac_mask = mac_mask[:, np.newaxis, :]
+        mac_mask = np.repeat(mac_mask, layer_mask.shape[1], 1)
+        lmac_mask = np.logical_and(layer_mask, mac_mask)
+        output.append(np.mean(self.octdata[lmac_mask]))
+        
+        # Swap everything to RE orientation
+        if self.laterality == 'OS':
+            output[3],output[4] = output[4],output[3]
+            output[7],output[8] = output[8],output[7]
+            
+        regions={'Fovea':output[0],
+                 'InnerInferior':output[1],
+                 'InnerSuperior':output[2],
+                 'InnerNasal':output[3],
+                 'InnerTemporal':output[4],
+                 'OuterInferior':output[5],
+                 'OuterSuperior':output[6],
+                 'OuterNasal':output[7],
+                 'OuterTemporal':output[8],
+                 'Inner':output[9],
+                 'Outer':output[10],
+                 'Macular':output[11]}
+    
+        regions = pd.Series(regions)
+        return regions        
+        
     def getEtdrsThickness(self, surface1, surface2, applyMask):
         """Calculate layer thickness values for edtrs regions"""
         layer = self.getThickness(surface1, surface2, applyMask)
         output = []
-        for iRegion in np.arange(1,10):
+        for iRegion in np.arange(1, 10):
             value = np.mean(layer[self.etdrs==iRegion])
             output.append(value)
             
