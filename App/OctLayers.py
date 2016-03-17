@@ -20,6 +20,25 @@ class OctLayers(object):
                       'OPL-HFL','BMEIS','IS/OSJ','IB_OPR','IB_RPE','OB_RPE']
     
     def __init__(self, data=None, *args, **kargs):
+        """Initialise the object"""
+        # Define some class variables
+        self.filename = None        # full path to the iowa surfaces xml file
+        self.center_filename = None # full path to the iowa grid_centers xml file
+        
+        self.data = None            # numpy masked array holding the iowa surface coordinate information
+                                    #  [nLayers x bscans x ascans]
+        self.etdrs = None           # numpy array holding mask for edtrs regions
+                                    #  [bscans x ascans]
+        self.rawdata = None         # as self.data but not affected by centering
+        self.octdata = None         # OCT scan data
+                                    #  [ascans x depth x bscans]
+
+        self.center_x = None        # int, holding x coordinate of the scan center from grid_centers.xml
+        self.center_y = None        # int, holding y coordinate of the scan center from grid_centers.xml
+        self.laterality = None      # eye ('OD'|'OS)
+        self.scan_size = None      # Dict {x,y,z} size of scan in pixels
+        self.voxel_size = None      # Dict {x,y,z} size of voxels in microns
+
         if 'system' in kargs.keys():
             self.system = kargs['system'].lower()
         else:
@@ -175,26 +194,27 @@ class OctLayers(object):
         
     def loadRaw(self):
         """Load the xml file defined in self.raw_filename"""
-        if not self.center_filename:
+        if self.raw_filename is None:
             logger.error('Raw filename not set')
             raise IOError('Filename not set')
         
-        image = np.fromfile(self.raw_filename, dtype='uint8')
-        assert(len(image) == (self.scan_size['x'] * 
-                              self.scan_size['y'] * 
-                              self.scan_size['z']),
-               'Raw file size doesnt match layers size')
+        if not self.raw_filename.endswith('.img'):
+            raise RuntimeError('Raw data only implemented for cirrus .img files')
         
-        image = image.reshape(self.scan_size)
+        image = np.fromfile(self.raw_filename, dtype='uint8')
+        expected_size = self.scan_size['x'] * self.scan_size['y'] * self.scan_size['z']
+        assert len(image) == expected_size, 'Raw file size doesnt match layers size'
+        
+        image = image.reshape((self.scan_size['y'],
+                               self.scan_size['z'],
+                               self.scan_size['x']))
 
         # flip array vertically, needed fo compatibility with layer data
         image = image[:,::-1,:]
         # and flip horizontally
         image = image[:,:,::-1]        
         
-        
-        
-        
+        self.octdata = image
         
     def centerData(self):
         """data matrix is shifted so that defined coordinates are in the center of the array
@@ -232,7 +252,7 @@ class OctLayers(object):
             
             
         # perform the centering
-        if not self.data == None:
+        if self.data is not None:
             # setup masked array data structures to hold the shifted data
             centered_data = np.ma.MaskedArray(np.empty(self.data.shape))
             centered_data[:] = np.NAN
@@ -249,7 +269,7 @@ class OctLayers(object):
             # update the object with the new data
             self.data = centered_data
 
-        if not self.etdrs == None:
+        if self.etdrs is not None:
             # setup array data structures to hold the shifted data
             centered_etdrs = np.empty(self.etdrs.shape)
             centered_etdrs[:] = np.NAN 
@@ -261,21 +281,21 @@ class OctLayers(object):
                            target_l_idx:(target_l_idx + valid_data.shape[2])] = \
                 valid_etdrs
     
-        #if not self.rawdata == None:
-            ## setup masked array data structures to hold the shifted data
-            #centered_rawdata = np.ma.MaskedArray(np.empty(self.rawdata.shape))
-            #centered_rawdata[:] = np.NAN 
+        if self.octdata is not None:
+            #setup masked array data structures to hold the shifted data
+            centered_octdata = np.ma.MaskedArray(np.empty(self.rawdata.shape))
+            centered_octdata[:] = np.NAN 
         
-            ## copy valid datapoints into the new masked array
-            ## invalid datapoints are those moved from outside the original scanned area        
-            #valid_rawdata = self.rawdata[t_idx:b_idx, :, l_idx:r_idx]
-            #centered_rawdata[target_t_idx:(target_t_idx + valid_rawdata.shape[0]),
-                             #:,
-                             #target_l_idx:(target_l_idx + valid_rawdata.shape[2])] = \
-                #valid_rawdata
-            ## update the masked array to mark invalid datapoints
-            #centered_rawdata.mask = (centered_rawdata.mask + np.isnan(centered_rawdata.data))
-            #self.rawdata = centered_rawdata
+            # copy valid datapoints into the new masked array
+            # invalid datapoints are those moved from outside the original scanned area        
+            valid_octdata = self.octdata[t_idx:b_idx, :, l_idx:r_idx]
+            centered_octdata[target_t_idx:(target_t_idx + valid_octdata.shape[0]),
+                             :,
+                             target_l_idx:(target_l_idx + valid_octdata.shape[2])] = \
+                valid_octdata
+            # update the masked array to mark invalid datapoints
+            centered_octdata.mask = (centered_octdata.mask + np.isnan(centered_octdata.data))
+            self.octdata = centered_octdata
     
     def setOrient(self,target='OD'):
         assert self.laterality, 'Original laterality not defined'
