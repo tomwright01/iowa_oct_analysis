@@ -436,7 +436,26 @@ class OctLayers(object):
                     if v is not np.ma.masked:
                         oct[frame,v-2:v+2,i]=255
         return oct
-
+    def getOctLayerMask(self, surface1, surface2, mask = True):
+        """Apply the layer data to the raw oct images
+        returns a masked array of the same size as self.octdata
+        with points outside the layer masked"""
+        if self.data is None:
+            raise RuntimeError('Surface data not loaded')
+        if self.octdata is None:
+            raise RuntimeError('Raw oct images not loaded')
+        mask = np.zeros(self.octdata.shape,
+                        dtype=np.bool)
+        # ensure we have the top surface first
+        surfaces = np.array([surface1,surface2])
+        surfaces.sort()
+        for frame in range(self.data.shape[1]):
+            for i,v in enumerate(self.data[surfaces[0],frame,:]):
+                v2 = self.data[surfaces[1],frame,i]
+                if v is not np.ma.masked and v2 is not np.ma.masked:
+                    mask[frame,v:v2,i] = True
+        return mask
+        
 class OctCollection(object):
     
     def __init__(self,folder = None, laterality='OD',nmax=None):
