@@ -267,7 +267,7 @@ class OctLayers(object):
     
         if self.octdata is not None:
             #setup masked array data structures to hold the shifted data
-            centered_octdata = np.ma.MaskedArray(np.empty(self.rawdata.shape))
+            centered_octdata = np.ma.MaskedArray(np.empty(self.octdata.shape))
             centered_octdata[:] = np.NAN 
         
             # copy valid datapoints into the new masked array
@@ -433,7 +433,8 @@ class OctLayers(object):
         for surface in range(self.data.shape[0]):
             for frame in range(self.data.shape[1]):
                 for i,v in enumerate(self.data[surface,frame,:]):
-                    oct[frame,v-2:v+2,i]=255
+                    if v is not np.ma.masked:
+                        oct[frame,v-2:v+2,i]=255
         return oct
 
 class OctCollection(object):
