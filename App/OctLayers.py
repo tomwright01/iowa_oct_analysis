@@ -71,7 +71,7 @@ class OctLayers(object):
 
         if 'raw_filename' in kargs.keys():
             self.raw_filename = kargs['raw_filename']
-            self.loadRaw()
+            self.loadRawOct()
 
         self.etdrs = self.genEtdrsRings()
             
@@ -192,7 +192,7 @@ class OctLayers(object):
         self.center_x = int(c.find('x').text)
         self.center_y = int(c.find('y').text)
         
-    def loadRaw(self):
+    def loadRawOct(self):
         """Load the xml file defined in self.raw_filename"""
         if self.raw_filename is None:
             logger.error('Raw filename not set')
