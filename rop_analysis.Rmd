@@ -1,0 +1,78 @@
+---
+title: "ROP Analysis"
+author: "Tom Wright"
+date: "February 1, 2016"
+output: 
+  pdf_document: 
+    fig_height: 5
+    fig_width: 7
+---
+
+Analysis of ROP OCT segmantation data.
+Segmentation performed using IOWA reference algorithms.
+ETDRS region thickness values extracted using rop_analysis.py scripts
+
+```{r, setup, echo=FALSE}
+suppressMessages(library(stringr))
+suppressMessages(library(dplyr))
+suppressMessages(library(ggplot2))
+suppressMessages(library(reshape2))
+```
+
+
+```{r dataImport, echo=FALSE}
+data_dir <- '/mnt/AO/OCT ROP'
+files <- list.files(path=data_dir,pattern='*.csv')
+
+loadData <- function(file)
+{
+  data<-read.csv(file=file,
+                 header=TRUE,
+                 row.names=1,
+                 na.strings='--')
+  data$ID <- factor(data$ID)
+  return(data)
+}
+data <- loadData(file.path(data_dir,files[1]))
+```
+
+#### Summary
+
+Data loaded from `r nrow(data)` eyes from `r length(levels(data$ID))` subjects.
+
+```{r, echo=FALSE}
+#some duplicates here, lets work out why
+data %>% 
+  group_by(ID) %>% 
+  summarise(no_rows=length(ID)) %>% 
+  arrange(desc(no_rows))
+```
+### Notes
+*2503689* two exam dates, 2013-10-24 and 2015-10-29
+*2511982* two exam dates, 2012-09-09 and 2014-09-22
+*2539652* two exam dates, 2013-09-11 and 2013-12-13 
+*2487958* two OD analysed 6 & 10, need to select best
+*2539016* two exam dates, 2014-03-13 and 2013-09-17, only right eye extracted for 2013-09-17
+
+
+```{r, echo=FALSE, warnings=FALSE}
+#match pattern to extract layer
+mp <- 'Output_(.){+}(.csv)'
+
+for(file in files){
+  # Extract the filename
+  layer <- str_match(file,'Output_(.){+}(.csv)')[2]
+  
+  data <- loadData(file.path(data_dir,file))
+  data_long <- melt(data, 
+                    id.vars=c("ID","Eye"),
+                    variable.name='Position')
+  p <- ggplot(data_long,aes(x=Position, y=value)) +
+        geom_boxplot(outlier.shape=NA) +
+        geom_point(aes(color=ID), position=position_jitter(width=0.2)) +
+        theme_bw() +
+        ggtitle(layer) + 
+        theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))
+  suppressWarnings(print(p))
+}
+```
