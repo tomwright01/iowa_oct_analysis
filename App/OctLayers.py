@@ -517,6 +517,27 @@ class OctLayers(object):
                 if v is not np.ma.masked and v2 is not np.ma.masked:
                     mask[frame,v:v2,i] = True
         return mask
+    def findFovea(self):
+        """Attempt to find coordinates of the fovea
+        Do this by finding the thinnest point between 
+        layers 0 (ILM) and 3 (IPL-INL)"""
+        layer = self.getThickness(0,3,False)
+        indices = np.where(layer == layer.min())
+        # in case there is more than one min value lets estimate the center
+        # first exclude and outlier pixels
+        #indices = zip(*indices) # convert from x,y pairs to [(x),(y)]
+        minpoint = (np.percentile(indices[0],25),
+                    np.percentile(indices[1],25))
+        maxpoint = (np.percentile(indices[0],75),
+                    np.percentile(indices[1],75))
+        badpoints_x = np.logical_or(indices[0] < minpoint[0],
+                                    indices[0] > maxpoint[0])
+        badpoints_y = np.logical_or(indices[1] < minpoint[1],
+                                    indices[1] > maxpoint[1])
+        goodpoints = np.logical_not(np.logical_or(badpoints_x,badpoints_y))
+        indices = (indices[0][goodpoints],indices[1][goodpoints])
+        centroid = (np.mean(indices[0]),np.mean(indices[1]))
+        self.center_y, self.center_x = [int(x) for x in centroid]
         
 class OctCollection(object):
     
