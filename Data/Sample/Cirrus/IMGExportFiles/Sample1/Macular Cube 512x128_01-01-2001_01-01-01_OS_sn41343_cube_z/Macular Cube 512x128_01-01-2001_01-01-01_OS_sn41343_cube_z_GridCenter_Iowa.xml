@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<grid_center>
+    <version>3.0</version>
+    <executable>
+        <name>OCTExplorer</name>
+        <version>3.6</version>
+        <date>04/01/2015</date>
+        <authors>Kyungmoo Lee, Michael D. Abramoff, Mona K. Garvin, Milan Sonka</authors>
+        <institute>Retinal Image Analysis Laboratory, The University of Iowa</institute>
+        <comment>For investigational use only, not FDA approved</comment>
+    </executable>
+    <modification>
+        <date>03/07/2016</date>
+        <time>15:54:36</time>
+        <modifier>NA</modifier>
+        <approval>N</approval>
+    </modification>
+    <scan_characteristics>
+        <manufacturer>Carl Zeiss Meditec, Inc.</manufacturer>
+        <size>
+            <unit>voxel</unit>
+            <x>512</x>
+            <y>128</y>
+            <z>1024</z>
+        </size>
+        <voxel_size>
+            <unit>um</unit>
+            <x>11.741680</x>
+            <y>47.244091</y>
+            <z>1.955034</z>
+        </voxel_size>
+        <laterality>NA</laterality>
+        <center_type>macula</center_type>
+    </scan_characteristics>
+    <unit>pixel</unit>
+    <center>
+        <x>253</x>
+        <y>66</y>
+    </center>
+</grid_center>
