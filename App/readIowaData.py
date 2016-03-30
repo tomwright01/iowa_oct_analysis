@@ -110,3 +110,18 @@ def readIowaSurfaces(fname):
             'eye':laterality,
             'surface_names':surface_labels,
             'surface_data':data}
+
+def readIowaCenter(fname):
+    """Load the GridCenter.xml file
+    Params:
+      fname - full path to the _GridCenter_Iowa.xml file
+      
+    Returns:
+      (center_x,center_y) - scan center in pixels
+    """
+    xml_root = xml.etree.ElementTree.parse(fname)
+    c = xml_root.find('center')
+    center_x = int(c.find('x').text)
+    center_y = int(c.find('y').text)    
+    
+    return (center_x,center_y)

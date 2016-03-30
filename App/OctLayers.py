@@ -122,10 +122,9 @@ class OctLayers(object):
             logger.error('Center filename not set')
             raise IOError('Filename not set')
         
-        xml_root = xml.etree.ElementTree.parse(self.center_filename)
-        c = xml_root.find('center')
-        self.center_x = int(c.find('x').text)
-        self.center_y = int(c.find('y').text)
+        result = readIowaData.readIowaCenter(self.center_filename)
+        self.center_x = result[0]
+        self.center_y = result[1]
         
     def loadRawOct(self):
         """Load the xml file defined in self.raw_filename"""
