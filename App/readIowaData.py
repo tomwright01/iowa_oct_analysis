@@ -31,9 +31,9 @@ def readIowaSurfaces(fname):
     This function reads the xml file to extract metadata and returns the surface information as numpy ndarray.
     """
     #define labels for the 10 retinal surfaces
-    surface_labels = ['ILM','RNFL-GCL','GCL-IPL','IPL-INL','INL-OPL',
-                      'OPL-HFL','BMEIS','IS/OSJ','IB_OPR','IB_RPE','OB_RPE']
-    
+    #surface_labels = ['ILM','RNFL-GCL','GCL-IPL','IPL-INL','INL-OPL',
+                      #'OPL-HFL','BMEIS','IS/OSJ','IB_OPR','IB_RPE','OB_RPE']
+    surface_labels = {}
     logger.debug('Loading surfaces file:{}'.format(fname))
     
     xml_root = xml.etree.ElementTree.parse(fname).getroot()
@@ -63,13 +63,14 @@ def readIowaSurfaces(fname):
         surface_name = surface.find('name').text
         logger.debug('Loading surface:{}'.format(surface_name))
         surface_idx = np.NaN
+        # extract the surface label
         match = re.match(p, surface_name)
         if match:
-            try:
-                surface_idx = surface_labels.index(match.group(1))
-            except ValueError:
-                logger.warning('Surface {} not defined'.format(match.group(1)))
-                break
+            if not match.group(1) in surface_labels.keys():
+                #surface not seen before add the label and description
+                surface_labels[match.group(1)] = (match.group(0),len(surface_labels))
+
+            surface_idx = surface_labels[match.group(1)][1]
         else:
             logger.warning('Failed to identify surface:{}'.format(surface_name))
             break

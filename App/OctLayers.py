@@ -20,8 +20,10 @@ class OctLayers(object):
                             [raw_filename = <path to raw .img file>])
     If laterality is not provided we will try to autodetect it from the xml file or from the filename
     """
-    surface_labels = ['ILM','RNFL-GCL','GCL-IPL','IPL-INL','INL-OPL',
-                      'OPL-HFL','BMEIS','IS/OSJ','IB_OPR','IB_RPE','OB_RPE']
+    #surface_labels = ['ILM','RNFL-GCL','GCL-IPL','IPL-INL','INL-OPL',
+                      #'OPL-HFL','BMEIS','IS/OSJ','IB_OPR','IB_RPE','OB_RPE']
+    #structure to hold surface label information
+    
     
     def __init__(self, data=None, *args, **kargs):
         """Initialise the object"""
