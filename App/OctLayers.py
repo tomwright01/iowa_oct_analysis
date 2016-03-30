@@ -6,6 +6,10 @@ import fnmatch
 import re
 import xml.etree.ElementTree
 
+import readIowaData
+import readBioptigenOct
+import readCirrusOct
+
 logger = logging.getLogger(__name__)
 
 class OctLayers(object):
@@ -103,67 +107,14 @@ class OctLayers(object):
             raise IOError('Filename not set')
         
         logger.debug('Loading file:{}'.format(self.filename))
-        xml_root = xml.etree.ElementTree.parse(self.filename).getroot()
-        # first lets extract the scan size information
-        self.scan_size = {'x': int(xml_root.find('./scan_characteristics/size/x').text),
-                          'y': int(xml_root.find('./scan_characteristics/size/y').text),
-                          'z': int(xml_root.find('./scan_characteristics/size/z').text)}
-        self.voxel_size = {'x': float(xml_root.find('./scan_characteristics/voxel_size/x').text),
-                           'y': float(xml_root.find('./scan_characteristics/voxel_size/y').text),
-                           'z': float(xml_root.find('./scan_characteristics/voxel_size/z').text)}
+        results = readIowaData.readIowaSurfaces(self.filename)
         
-        # structure to hold layer measurements
-        # data in this structure is in pixels and can be used by the centering function
-        self.data = np.empty((11,
-                              self.scan_size['y'],
-                              self.scan_size['x']),
-                             dtype=np.float)
-
-        p = re.compile('.*\((.*)\)')
-        for surface in xml_root.findall('surface'):
-            # identify which surface this is and assign an index
-            # can't use the label in the xml file as these are not contiguous
-            surface_name = surface.find('name').text
-            logger.debug('Loading surface:{}'.format(surface_name))
-            surface_idx = np.NaN
-            match = re.match(p, surface_name)
-            if match:
-                try:
-                    surface_idx = self.surface_labels.index(match.group(1))
-                except ValueError:
-                    logger.debug('Surface {} not defined'.format(match.group(1)))
-                    break
-            else:
-                logger.warning('Failed to identify surface:{}'.format(surface_name))
-                break
-            logger.debug('Surface index:{}'.format(surface_idx))
-            # loop through all the bscans
-            surface_bscans = surface.findall('bscan')
-            for bscan_idx in range(self.data.shape[1]):
-                bscan = surface_bscans[bscan_idx]
-
-                self.data[surface_idx,bscan_idx,:] = \
-                    [int(z.text) for z in bscan.findall('z')]                
-                
-        undef_mask = np.zeros(self.data.shape,dtype=np.bool)
-        undef_xml = xml_root.find('undefined_region')
-        
-        if undef_xml is not None:
-            for ascan in undef_xml.findall('ascan'):
-                x = int(ascan.find('x').text)
-                y = int(ascan.find('y').text)
-                undef_mask[:,y,x] = True
-        self.data = np.ma.MaskedArray(self.data, mask = undef_mask)
-
-        laterality = xml_root.find('scan_characteristics').find('laterality').text
-        if laterality.upper in ['OD','OS']:
-            self.laterality = laterality.upper
-        else:
-            # not defined in the xml file, see if we can extract from the filename
-            p = re.compile('(OD|OS)')
-            m = re.search(p,self.filename)
-            if m:
-                self.laterality = m.group(0)
+        self.scan_size = results['scan_size']
+        self.voxel_size = results['voxel_size']
+        self.system = results['scan_system']
+        self.laterality = results['eye']
+        self.surface_labels = results['surface_names']
+        self.data = results['surface_data']
                 
     def loadCenter(self):
         """Load the xml file defined in self.center_filename"""
@@ -182,23 +133,13 @@ class OctLayers(object):
             logger.error('Raw filename not set')
             raise IOError('Filename not set')
         
-        if not self.raw_filename.endswith('.img'):
-            raise RuntimeError('Raw data only implemented for cirrus .img files')
-        
-        image = np.fromfile(self.raw_filename, dtype='uint8')
-        expected_size = self.scan_size['x'] * self.scan_size['y'] * self.scan_size['z']
-        assert len(image) == expected_size, 'Raw file size doesnt match layers size'
-        
-        image = image.reshape((self.scan_size['y'],
-                               self.scan_size['z'],
-                               self.scan_size['x']))
-
-        # flip array vertically, needed fo compatibility with layer data
-        image = image[:,::-1,:]
-        # and flip horizontally
-        image = image[:,:,::-1]        
-        
-        self.octdata = image
+        if self.system == 'cirrus' or self.raw_filename.lower().endswith('img'):
+            octData = readCirrusOct.readCirrusOct(self.raw_filename)
+        elif self.system == 'bioptigen' or self.raw_filename.lower().endswith('oct'):
+            octData = readBioptigenOct.readBioptigenOct(self.raw_filename)
+            
+       
+        self.octdata = octData['image_data']
         
     def centerData(self):
         """data matrix is shifted so that defined coordinates are in the center of the array
