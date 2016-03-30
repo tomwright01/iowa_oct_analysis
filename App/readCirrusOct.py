@@ -18,7 +18,7 @@ def readCirrusOct(fname):
         Examples
         headers, image_data = readCirrusOct(fname)"""
     
-    if not fname.endswith('.img'):
+    if not fname.lower().endswith('.img'):
         raise RuntimeError('Only cirrus .img files are supported')
     
     # parse the filename to get the scan size (voxels)
