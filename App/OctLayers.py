@@ -215,10 +215,11 @@ class OctLayers(object):
             # copy valid datapoints into the new masked array
             # invalid datapoints are those moved from outside the original scanned area        
             valid_octdata = self.octdata[t_idx:b_idx, :, l_idx:r_idx]
-            centered_octdata[target_t_idx:(target_t_idx + valid_octdata.shape[0]),
+            centered_octdata[0:(self.octdata.shape[0] - target_t_idx),
                              :,
                              target_l_idx:(target_l_idx + valid_octdata.shape[2])] = \
                 valid_octdata
+            #target_t_idx:(target_t_idx + valid_octdata.shape[0]),
             # update the masked array to mark invalid datapoints
             centered_octdata.mask = (centered_octdata.mask + np.isnan(centered_octdata.data))
             self.octdata = centered_octdata
@@ -425,7 +426,7 @@ class OctLayers(object):
         regions = pd.Series(regions)
         return regions
     
-    def overlayLayers(self):
+    def overlayLayers(self,surfaces = None):
         """overlay surfaces onto raw oct images
         returns an np.array[bscans,depth,ascans]"""
         if self.data is None:
@@ -434,7 +435,10 @@ class OctLayers(object):
             raise RuntimeError('Raw oct images not loaded')
         
         oct = np.copy(self.octdata)
-        for surface in range(self.data.shape[0]):
+        if surfaces is None:
+            surfaces = range(self.data.shape[0])
+            
+        for surface in surfaces:
             for frame in range(self.data.shape[1]):
                 for i,v in enumerate(self.data[surface,frame,:]):
                     if v is not np.ma.masked:
@@ -552,3 +556,4 @@ class OctCollection(object):
             data = recording.getEtdrsThickness(surface1, surface2, applyMask)
             output = output.append(data, ignore_index=True)
         return output
+    
