@@ -215,7 +215,7 @@ class OctLayers(object):
             # copy valid datapoints into the new masked array
             # invalid datapoints are those moved from outside the original scanned area        
             valid_octdata = self.octdata[t_idx:b_idx, :, l_idx:r_idx]
-            centered_octdata[0:(self.octdata.shape[0] - target_t_idx),
+            centered_octdata[target_t_idx:(target_t_idx + valid_octdata.shape[0]),
                              :,
                              target_l_idx:(target_l_idx + valid_octdata.shape[2])] = \
                 valid_octdata
@@ -229,6 +229,8 @@ class OctLayers(object):
         assert self.laterality, 'Original laterality not defined'
         if self.laterality != target:
             self.data = self.data[:,:,::-1]
+            if self.octdata is not None:
+                self.octdata = self.octdata[:,:,::-1]
             self.laterality = target
     
     def getThickness(self, surface1, surface2, mask = True):
@@ -426,23 +428,33 @@ class OctLayers(object):
         regions = pd.Series(regions)
         return regions
     
-    def overlayLayers(self,surfaces = None):
+    def overlayLayers(self,surfaces = None, frames=None):
         """overlay surfaces onto raw oct images
-        returns an np.array[bscans,depth,ascans]"""
+        Params:
+          surfaces - list of surface indexes to be applied, if None (default) overlays all surfaces
+          frames - list of frames to apply surfaces to, if None (default) processes all frames (memory hungry)
+        returns:
+        an np.array[bscans,depth,ascans]
+        """
         if self.data is None:
             raise RuntimeError('Surface data not loaded')
         if self.octdata is None:
             raise RuntimeError('Raw oct images not loaded')
-        
-        oct = np.copy(self.octdata)
+
         if surfaces is None:
             surfaces = range(self.data.shape[0])
-            
-        for surface in surfaces:
-            for frame in range(self.data.shape[1]):
+        if frames is None:
+            frame = range(self.data.shape[1])
+        
+        #oct = np.copy(self.octdata)
+        oct = self.octdata[frames,:,:]
+        oct_idx = 0
+        for frame in frames:
+            for surface in surfaces:
                 for i,v in enumerate(self.data[surface,frame,:]):
                     if v is not np.ma.masked:
-                        oct[frame,v-2:v+2,i]=255
+                        oct[oct_idx,v-2:v+2,i]=255
+        oct_idx = oct_idx + 1
         return oct
     def getOctLayerMask(self, surface1, surface2, mask = True):
         """Apply the layer data to the raw oct images
