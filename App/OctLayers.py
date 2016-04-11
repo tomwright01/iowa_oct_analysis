@@ -80,6 +80,7 @@ class OctLayers(object):
             self.loadRawOct()
 
         self.etdrs = self.genEtdrsRings()
+        self.ganglionMask = self.genGanglionCellRegions()
             
         # can override the autodetected laterality here
         if 'laterality' in kargs.keys():
@@ -249,13 +250,16 @@ class OctLayers(object):
             
         return thickness
     
-    def genEtdrsRings(self):
-        """generate a mask template for etdrs regions"""
+    def _getVoxelSize(self):
+        """Calculate the size of the image voxels,
+        Returns:
+          (pixSizeX,pixSizeY,scanSizeX,scanSizeY)"""
+        
         if self.voxel_size:
             #if we have loaded from xml file we can go this route
             pixSizeX = self.voxel_size['x'] / 1000
             pixSizeY = self.voxel_size['y'] / 1000
-            
+        
             scanSizeX = self.scan_size['x'] * pixSizeX
             scanSizeY = self.scan_size['y'] * pixSizeY
         else:
@@ -270,20 +274,77 @@ class OctLayers(object):
                 scanSizeY = float(12)
             else:
                 raise ValueError('Other OCT systems not yet implemented')
-            
-            pixSizeX = scanSizeX / self.data.shape[2]
-            pixSizeY = scanSizeY / self.data.shape[1]            
-            
+    
+        pixSizeX = scanSizeX / self.data.shape[2]
+        pixSizeY = scanSizeY / self.data.shape[1]        
+        return (pixSizeX,pixSizeY,scanSizeX,scanSizeY)
+    
+    def genGanglionCellRegions(self):
+        """generate a 6-sector mask template to simulate Cirrus
+        Ganglion cell analysis"""
+        pixSizeX, pixSizeY, scanSizeX, scanSizeY = self._getVoxelSize()
+        
+        #calculate the ring sizes in pixels
+        radius_mm = np.array([1,6],dtype=np.float) / 2
+        radius_pix_x = radius_mm * pixSizeX
+        radius_pix_y = radius_mm * pixSizeY        
+
+        # calculate the pixel coordinates in mm
+        y,x = np.ogrid[:self.data.shape[1],:self.data.shape[2]]
+        x = x + 0.5 # move grid from pixel vertices to pixel centers
+        y = y + 0.5
+        x_mm = x * pixSizeX
+        y_mm = y * pixSizeY
+
+        # find the center location in mm
+        cx_mm = scanSizeX / 2
+        cy_mm = scanSizeY / 2  
+        
+        # convert from cartesian to polar coordinates
+        r2 = (x_mm-cx_mm)**2 + (y_mm-cy_mm)**2
+        theta = np.arctan2(y_mm-cy_mm,x_mm-cx_mm)
+    
+        # define the sectors
+        s1 = np.logical_and(theta<(-np.pi / 3), theta>(-2 * np.pi / 3))
+        s2 = np.logical_and(theta < 0, theta>(-np.pi / 3))
+        s3 = np.logical_and(theta > 0, theta < (np.pi /3))
+        s4 = np.logical_and(theta > np.pi / 3, theta < (2 * np.pi / 3))
+        s5 = np.logical_and(theta > (2 * np.pi / 3), theta < np.pi)
+        s6 = theta < (-2 * np.pi / 3)
+                            
+        # ring  mask
+        rMask = np.zeros(r2.shape,dtype=np.bool)
+        rMask[np.logical_and(r2 > radius_mm[0]**2, r2 < radius_mm[1]**2)] = 1
+        
+        ganglionMask = np.zeros(r2.shape,dtype=np.int)
+        
+        ganglionMask[np.logical_and(rMask,s1)] = 1 # Sector 1
+        ganglionMask[np.logical_and(rMask,s2)] = 2 # Sector 1
+        ganglionMask[np.logical_and(rMask,s3)] = 3 # Sector 1
+        ganglionMask[np.logical_and(rMask,s4)] = 4 # Sector 1
+        ganglionMask[np.logical_and(rMask,s5)] = 5 # Sector 1
+        ganglionMask[np.logical_and(rMask,s6)] = 6 # Sector 1
+        
+        return(ganglionMask)
+
+    def genEtdrsRings(self):
+        """generate a mask template for etdrs regions"""
+                    
+        pixSizeX, pixSizeY, scanSizeX, scanSizeY = self._getVoxelSize()
+        
+        #calculate the ring sizes in pixels
         radius_mm = np.array([1,3,6],dtype=np.float) / 2
         radius_pix_x = radius_mm * pixSizeX
         radius_pix_y = radius_mm * pixSizeY
         
+        # calculate the pixel coordinates in mm
         y,x = np.ogrid[:self.data.shape[1],:self.data.shape[2]]
         x = x + 0.5 # move grid from pixel vertices to pixel centers
         y = y + 0.5
         x_mm = x * pixSizeX
         y_mm = y * pixSizeY
         
+        # find the center location in mm
         cx_mm = scanSizeX / 2
         cy_mm = scanSizeY / 2
         
@@ -382,6 +443,24 @@ class OctLayers(object):
         regions = pd.Series(regions)
         return regions        
         
+    def getGanglionThickness(self, surface1, surface2, applyMask):
+        """Calculate layer thickness values for ganglion mask"""
+        layer = self.getThickness(surface1, surface2, applyMask)
+        output = []
+        for iRegion in np.arange(1, 7):
+            value = np.mean(layer[self.ganglionMask==iRegion])
+            output.append(value)        
+
+        regions={'sector-1':output[0],
+                 'sector-2':output[1],
+                 'sector-3':output[2],
+                 'sector-4':output[3],
+                 'sector-5':output[4],
+                 'sector-6':output[5]}
+    
+        regions = pd.Series(regions)
+        return regions
+    
     def getEtdrsThickness(self, surface1, surface2, applyMask):
         """Calculate layer thickness values for edtrs regions"""
         layer = self.getThickness(surface1, surface2, applyMask)
