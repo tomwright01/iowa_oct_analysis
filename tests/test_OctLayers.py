@@ -1,31 +1,29 @@
-from nose.tools import *
-import numpy as np
+import pytest
 import App.OctLayers as Oct
 
-def test_center_data_1():
-    oct = Oct.OctLayers()
-    oct.data = np.ones((1,5,5))
-    oct.center_x = 1
-    oct.center_y = 1
-    oct.centerData()
-    
-    target = np.empty((1,5,5))
-    target[:] = np.NAN
-    target[0,1:5,1:5] = np.ones((4,4))
-    assert np.all(oct.data==target)
-    
-def test_center_data_2():
-    oct = Oct.OctLayers()
-    oct.data = np.ones((1,5,5))
-    oct.center_x = 3
-    oct.center_y = 3
-    oct.centerData()
-    
-    target = np.empty((1,5,5))
-    target[:] = np.NAN
-    target[0,0:4,0:4] = np.ones((4,4))
-    assert np.all(oct.data==target)
-    
-if __name__=='__main__':
-    logging.basicConfig(level=logging.DEBUG)
-    test_center_data()
+@pytest.fixture(scope="module",
+                params=['cirrus','bioptigen'])
+def oct(request):
+    if request.param == 'cirrus':
+        fname = 'Data/Sample/Cirrus/Sample1/Macular Cube 512x128_01-01-2001_01-01-01_OS_sn41343_cube_z.img'
+        fname_layers = 'Data/Sample/Cirrus/Sample1/Macular Cube 512x128_01-01-2001_01-01-01_OS_sn41343_cube_z/Macular Cube 512x128_01-01-2001_01-01-01_OS_sn41343_cube_z_Surfaces_Iowa.xml'
+        fname_centers = 'Data/Sample/Cirrus/Sample1/Macular Cube 512x128_01-01-2001_01-01-01_OS_sn41343_cube_z/Macular Cube 512x128_01-01-2001_01-01-01_OS_sn41343_cube_z_GridCenter_Iowa.xml'    
+    elif request.param == 'bioptigen':
+        fname = 'Data/Sample/Bioptigen/sample_OD_V_12x12_0_0000036.OCT'
+        fname_layers = 'Data/Sample/Bioptigen/sample_OD_V_12x12_0_0000036/sample_OD_V_12x12_0_0000036_Surfaces_Iowa.xml'
+        fname_centers = 'Data/Sample/Bioptigen/sample_OD_V_12x12_0_0000036/sample_OD_V_12x12_0_0000036_GridCenter_Iowa.xml'            
+
+    return Oct.OctLayers(filename=fname_layers,
+                        center_filename=fname_centers,
+                        raw_filename=fname)
+
+def test_load(oct):
+    assert oct.data is not None
+    if oct.system == 'cirrus':
+        assert oct.center_x == 253
+        assert oct.center_y == 66
+    elif oct.system == 'bioptigen':
+        assert oct.center_x == 500
+        assert oct.center_y == 50
+    else:
+        print 'Invalid system'
