@@ -9,6 +9,7 @@ import xml.etree.ElementTree
 import readIowaData
 import readBioptigenOct
 import readCirrusOct
+import translate_array as translate
 
 logger = logging.getLogger(__name__)
 
@@ -149,82 +150,14 @@ class OctLayers(object):
         
         assert self.center_x and self.center_y, 'Center coords not set'
               
-        # center point is defined as x,y coordinates in the original macular cube,
-        # calculate how far to shift these coordinates to move them to the array center
-        row_shift = self.center_y - int(self.data.shape[1] / 2)
-        col_shift = self.center_x - int(self.data.shape[2] / 2)
+        row_shift = int(self.data.shape[1] / 2) - self.center_y
+        col_shift = int(self.data.shape[2] / 2) - self.center_x
         
-        # perform the actual shift
-        if row_shift <= 0:
-            # shift data down
-            t_idx = 0
-            b_idx = self.data.shape[1]  - abs(row_shift)
-            target_t_idx = abs(row_shift)
-        else:
-            # shift data up
-            t_idx = row_shift
-            b_idx = self.data.shape[1]
-            target_t_idx = 0
-            
-        if col_shift <= 0:
-            # shift data right
-            l_idx = 0
-            r_idx = self.data.shape[2] - abs(col_shift)
-            target_l_idx = abs(col_shift)
-        else:
-            # shift data right
-            l_idx = col_shift
-            r_idx = self.data.shape[2]
-            target_l_idx = 0
-            
-            
-        # perform the centering
-        if self.data is not None:
-            # setup masked array data structures to hold the shifted data
-            centered_data = np.ma.MaskedArray(np.empty(self.data.shape))
-            centered_data[:] = np.NAN
-
-            # copy valid datapoints into the new masked array
-            # invalid datapoints are those moved from outside the original scanned area
-            valid_data = self.data[:,t_idx:b_idx, l_idx:r_idx]        
-            centered_data[:,
-                          target_t_idx:(target_t_idx + valid_data.shape[1]),
-                          target_l_idx:(target_l_idx + valid_data.shape[2])] = \
-                valid_data
-            # update the masked array to mark invalid datapoints
-            centered_data.mask = (centered_data.mask + np.isnan(centered_data.data))
-            # update the object with the new data
-            self.data = centered_data
-
         if self.etdrs is not None:
-            # setup array data structures to hold the shifted data
-            centered_etdrs = np.empty(self.etdrs.shape)
-            centered_etdrs[:] = np.NAN 
-        
-            # copy valid datapoints into the new masked array
-            # invalid datapoints are those moved from outside the original scanned area        
-            valid_etdrs = self.etdrs[t_idx:b_idx, l_idx:r_idx]
-            centered_etdrs[target_t_idx:(target_t_idx + valid_data.shape[1]),
-                           target_l_idx:(target_l_idx + valid_data.shape[2])] = \
-                valid_etdrs
-    
-        if self.octdata is not None:
-            #setup masked array data structures to hold the shifted data
-            centered_octdata = np.ma.MaskedArray(np.empty(self.octdata.shape))
-            centered_octdata[:] = np.NAN 
-        
-            # copy valid datapoints into the new masked array
-            # invalid datapoints are those moved from outside the original scanned area        
-            valid_octdata = self.octdata[t_idx:b_idx, :, l_idx:r_idx]
-            centered_octdata[target_t_idx:(target_t_idx + valid_octdata.shape[0]),
-                             :,
-                             target_l_idx:(target_l_idx + valid_octdata.shape[2])] = \
-                valid_octdata
-            #target_t_idx:(target_t_idx + valid_octdata.shape[0]),
-            # update the masked array to mark invalid datapoints
-            centered_octdata.mask = (centered_octdata.mask + np.isnan(centered_octdata.data))
-            self.octdata = centered_octdata
-    
+            self.etdrs = translate.translate_array(self.etdrs,(row_shift,col_shift))
+        if self.ganglionMask is not None:
+            self.ganglionMask = translate.translate_array(self.ganglionMask,(row_shift,col_shift))        
+            
     def setOrient(self,target='OD'):
         """Modify the autodetected orientation of the recording"""
         assert self.laterality, 'Original laterality not defined'
