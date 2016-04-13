@@ -567,10 +567,10 @@ class OctLayers(object):
                     np.percentile(indices[1],25))
         maxpoint = (np.percentile(indices[0],75),
                     np.percentile(indices[1],75))
-        badpoints_x = np.logical_or(indices[0] < minpoint[0],
-                                    indices[0] > maxpoint[0])
-        badpoints_y = np.logical_or(indices[1] < minpoint[1],
-                                    indices[1] > maxpoint[1])
+        badpoints_x = np.logical_or(indices[0] <= minpoint[0],
+                                    indices[0] >= maxpoint[0])
+        badpoints_y = np.logical_or(indices[1] <= minpoint[1],
+                                    indices[1] >= maxpoint[1])
         goodpoints = np.logical_not(np.logical_or(badpoints_x,badpoints_y))
         indices = (indices[0][goodpoints],indices[1][goodpoints])
         centroid = (np.mean(indices[0]),np.mean(indices[1]))
