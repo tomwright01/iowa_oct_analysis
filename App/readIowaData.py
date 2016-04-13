@@ -48,7 +48,14 @@ def readIowaSurfaces(fname):
 
     # try to exract system information
     system = xml_root.find('./scan_characteristics/manufacturer').text.lower()
-
+    if bool(re.search('carl zeiss',system)):
+        system = 'cirrus'
+    elif bool(re.search('Bioptigen',system)):
+        system = 'bioptigen'
+    else:
+        logger.warn('Unknown system type')
+        system = 'unknown'
+        
     # structure to hold layer measurements
     # data in this structure is in pixels and can be used by the centering function
     data = np.empty((11, 
