@@ -218,7 +218,7 @@ class OctLayers(object):
         pixSizeX, pixSizeY, scanSizeX, scanSizeY = self._getVoxelSize()
         
         #calculate the ring sizes in pixels
-        radius_mm = np.array([1,6],dtype=np.float) / 2
+        radius_mm = np.array([0.7,2.9],dtype=np.float) / 2 # size of rings in mm retina
         radius_pix_x = radius_mm * pixSizeX
         radius_pix_y = radius_mm * pixSizeY        
 
