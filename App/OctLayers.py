@@ -496,16 +496,22 @@ class OctLayers(object):
         # in case there is more than one min value lets estimate the center
         # first exclude and outlier pixels
         #indices = zip(*indices) # convert from x,y pairs to [(x),(y)]
-        minpoint = (np.percentile(indices[0],25),
-                    np.percentile(indices[1],25))
-        maxpoint = (np.percentile(indices[0],75),
-                    np.percentile(indices[1],75))
-        badpoints_x = np.logical_or(indices[0] <= minpoint[0],
-                                    indices[0] >= maxpoint[0])
-        badpoints_y = np.logical_or(indices[1] <= minpoint[1],
-                                    indices[1] >= maxpoint[1])
-        goodpoints = np.logical_not(np.logical_or(badpoints_x,badpoints_y))
-        indices = (indices[0][goodpoints],indices[1][goodpoints])
+        if len(indices[0]) > 1:
+            # more than one minimum returned,
+            #filter points that are outside the 'center' region
+            minpoint_y = np.percentile(indices[0],25)-1
+            maxpoint_y = np.percentile(indices[0],75)+1
+            badpoints_y = np.logical_or(indices[0] < minpoint_y,
+                                        indices[0] > maxpoint_y)
+    
+            minpoint_x = np.percentile(indices[1],25)-1
+            maxpoint_x = np.percentile(indices[1],75)+1
+            badpoints_x = np.logical_or(indices[1] < minpoint_x,
+                                        indices[1] > maxpoint_x)
+                
+            goodpoints = np.logical_not(np.logical_or(badpoints_x,badpoints_y))
+        
+            indices = (indices[0][goodpoints],indices[1][goodpoints])
         centroid = (np.mean(indices[0]),np.mean(indices[1]))
         self.center_y, self.center_x = [int(x) for x in centroid]
         
