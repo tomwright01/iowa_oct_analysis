@@ -50,7 +50,7 @@ def readIowaSurfaces(fname):
     system = xml_root.find('./scan_characteristics/manufacturer').text.lower()
     if bool(re.search('carl zeiss',system)):
         system = 'cirrus'
-    elif bool(re.search('Bioptigen',system)):
+    elif bool(re.search('bioptigen',system)):
         system = 'bioptigen'
     else:
         logger.warn('Unknown system type')
@@ -133,3 +133,7 @@ def readIowaCenter(fname):
     center_y = int(c.find('y').text)    
     
     return (center_x,center_y)
+
+if __name__ == '__main__':
+    fname = '../Data/Sample/Bioptigen/sample_OD_V_12x12_0_0000010/sample_OD_V_12x12_0_0000010_Surfaces_Iowa.xml'
+    x = readIowaSurfaces(fname)
