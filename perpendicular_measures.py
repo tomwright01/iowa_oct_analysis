@@ -3,13 +3,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def find_thickness(surface2, start_pixel, vector, step=0.1, start_t=0):
+def find_thickness(surface2, start_pixel, vector, direction, steps=(1), current_step=1, start_t=0):
     """Extends the 3D vector until it intersects with the surface
     Arguments:
     surface2 - an ndArray of values (the surface to be measured to)
     start_pixel [x,y,z] coordinates of the starting point of the vector (the pixel to be measured from)
     vector - [x,y,z] defining a 3d vector perpendicular to the starting surface
-    step - step size to extend the vector, larger step size runs faster, smaller step size is more accurate
+    direction - ['gt','lt'] direction to grow vector in, gt - target values are expected to be > start values
+    steps - list object containing step sizes to extend the vector, larger step size runs faster, smaller step size is more accurate
     start_t - an initial value of t (vector length). This allows the function to be initially run with a large step size, then a smaller one for more accurancy
     
     Returns:
@@ -22,7 +23,9 @@ def find_thickness(surface2, start_pixel, vector, step=0.1, start_t=0):
     found = False
     t = start_t
     
-    while not found:
+    step = steps[current_step]
+    
+    while True:
         # the main loop, vector is multiplied by factor t until it crosses the target surface
         t = t + step
         scaled_vec = t * vector
@@ -32,7 +35,13 @@ def find_thickness(surface2, start_pixel, vector, step=0.1, start_t=0):
         if new_pix[0] > surface2.shape[1] - 1  or new_pix[1] > surface2.shape[0] - 1 \
            or new_pix[0] < 0 or new_pix[1] < 0:
             #import pdb; pdb.set_trace()
-            return np.nan
+            if current_step == len(steps):
+                return np.nan
+            else:
+                return(find_thickness(surface2, start_pixel, vector, direction,
+                                     steps=steps, 
+                                     current_step=current_step + 1,
+                                     start_t = t - step))
        
         # Check if both vector components are 0
         if np.isclose(scaled_vec[0], 0) and np.isclose(scaled_vec[1], 0):
@@ -66,11 +75,20 @@ def find_thickness(surface2, start_pixel, vector, step=0.1, start_t=0):
             # no interpolation required
             new_val = surface2[start_pixel[1], start_pixel[0]]
                         
+        if direction == 'gt':
+            found = new_pix[2] >= new_val
+        else:
+            found = new_pix[2] <= new_val
             
-        if new_pix[2] <= new_val:
-            vec_length = np.linalg.norm(t * vector)
-            return t - step
-        
+        if found:
+            if current_step == len(steps):
+                return(t-step)
+            else:
+                return(find_thickness(surface2, start_pixel, vector, 
+                                     steps=steps, 
+                                     current_step=current_step + 1, 
+                                     start_t=t))
+            
 def bilinear_interpolation(x, y, points):
     '''Interpolate (x,y) from values associated with four points.
 
