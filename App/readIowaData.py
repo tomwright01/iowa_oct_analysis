@@ -7,23 +7,23 @@ logger = logging.getLogger(__name__)
 
 def readIowaSurfaces(fname):
     """Read the surfaces .xml file generated from OCTExplorer
-    
+
     Params:
       fname - full path to the .xml file
-      
+
     Returns:
     {'scan_size' - {'x','y','z'} - scan_size in voxels,
      'voxel_size' - {'x','y','z'} - voxel_size in microns,
      'scan_system' - 'cirrus'|'bioptigen' - Recording system manufacturer,
                          #TODO - find out what the value is for .jpg images and heidelburg
-     'eye': 'OD'|'OS' 
+     'eye': 'OD'|'OS'
      'surface_names': [] - list of surfaces identified
      'surface_data': an [nSurfaces,nBscans,nAscans] numpy.maskedarray of the surface data
                      each (Surface,x,y) value is an integer value indicating the depth of the surface
                      pixels are counted from the top of the scan and numbered from 1
-    
+
     Examples:
-    
+
     Description:
     OCTExplorer.exe (https://www.iibi.uiowa.edu/content/iowa-reference-algorithms-human-and-murine-oct-retinal-layer-analysis-and-display)
     implements the Iowa Reference Algorithm to segment Ocular Coherence Tomography files from a variety of commercial systems.
@@ -35,9 +35,17 @@ def readIowaSurfaces(fname):
                       #'OPL-HFL','BMEIS','IS/OSJ','IB_OPR','IB_RPE','OB_RPE']
     surface_labels = {}
     logger.debug('Loading surfaces file:{}'.format(fname))
-    
+
     xml_root = xml.etree.ElementTree.parse(fname).getroot()
-    
+
+    # OCTexplorer version 3 used a <z> element for suface heights, version 4 uses <y>
+    version = xml_root.find('version').text
+    if version.startswith('3'):
+        value_element = 'z'
+    else:
+        value_element = 'y'
+
+
     # first lets extract the scan size information
     scan_size = {'x': int(xml_root.find('./scan_characteristics/size/x').text),
                  'y': int(xml_root.find('./scan_characteristics/size/y').text),
@@ -55,13 +63,20 @@ def readIowaSurfaces(fname):
     else:
         logger.warn('Unknown system type')
         system = 'unknown'
-        
+
     # structure to hold layer measurements
     # data in this structure is in pixels and can be used by the centering function
-    data = np.empty((11, 
-                     scan_size['y'], 
-                     scan_size['x']),
-                    dtype=np.float)
+    nlayers = int(xml_root.find('surface_num').text)
+    if version.startswith('3'):
+        data = np.empty((nlayers,
+                         scan_size['y'],
+                         scan_size['x']),
+                        dtype=np.float)
+    else:
+        data = np.empty((nlayers,
+                         scan_size['z'],
+                         scan_size['x']),
+                        dtype=np.float)
 
     p = re.compile('.*\((.*)\)')
     for surface in xml_root.findall('surface'):
@@ -81,14 +96,14 @@ def readIowaSurfaces(fname):
         else:
             logger.warning('Failed to identify surface:{}'.format(surface_name))
             break
-        
+
         logger.debug('Surface index:{}'.format(surface_idx))
         # loop through all the bscans
         surface_bscans = surface.findall('bscan')
         for bscan_idx in range(data.shape[1]):
             bscan = surface_bscans[bscan_idx]
-            data[surface_idx,bscan_idx,:] = [int(z.text) for z in bscan.findall('z')]                
-            
+            data[surface_idx,bscan_idx,:] = [int(z.text) for z in bscan.findall(value_element)]
+
     # .xml file may also contain information on where segmentation has failed
     # create a structure to store this information
     undef_mask = np.zeros(data.shape,dtype=np.bool)
@@ -99,7 +114,7 @@ def readIowaSurfaces(fname):
             x = int(ascan.find('x').text)
             y = int(ascan.find('y').text)
             undef_mask[:,y,x] = True
-            
+
     data = np.ma.MaskedArray(data, mask = undef_mask)
 
     laterality = xml_root.find('scan_characteristics').find('laterality').text
@@ -111,7 +126,7 @@ def readIowaSurfaces(fname):
         m = re.search(p,fname)
         if m:
             laterality = m.group(0)
-    
+
     return {'scan_size':scan_size,
             'voxel_size':voxel_size,
             'scan_system':system,
@@ -123,13 +138,13 @@ def readIowaCenter(fname):
     """Load the GridCenter.xml file
     Params:
       fname - full path to the _GridCenter_Iowa.xml file
-      
+
     Returns:
       (center_x,center_y) - scan center in pixels
     """
     xml_root = xml.etree.ElementTree.parse(fname)
     c = xml_root.find('center')
     center_x = int(c.find('x').text)
-    center_y = int(c.find('y').text)    
-    
+    center_y = int(c.find('y').text)
+
     return (center_x,center_y)
