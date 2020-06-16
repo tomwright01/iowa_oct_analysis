@@ -5,6 +5,7 @@ import os
 import fnmatch
 import re
 import xml.etree.ElementTree
+import skimage.transform
 
 from . import readIowaData
 # from . import readBioptigenOct
@@ -212,9 +213,12 @@ class OctLayers(object):
         pixSizeY = scanSizeY / self.data.shape[1]
         return (pixSizeX,pixSizeY,scanSizeX,scanSizeY)
 
-    def genGanglionCellRegions(self):
+    def genGanglionCellRegions(self, inner=0.7, outer=2.9):
         """generate a 6-sector mask template to simulate Cirrus
-        Ganglion cell analysis"""
+        Ganglion cell analysis
+        inner - diameter of inner ring in mm default:0.7
+        outer - diameter of outer ring in mm default:2.9
+        """
         pixSizeX, pixSizeY, scanSizeX, scanSizeY = self._getVoxelSize()
 
         #calculate the ring sizes in pixels
@@ -258,7 +262,21 @@ class OctLayers(object):
         ganglionMask[np.logical_and(rMask,s5)] = 5 # Sector 1
         ganglionMask[np.logical_and(rMask,s6)] = 6 # Sector 1
 
+        # GCLIPL mask is elipsoid so stretch on x axis
+        size_x = np.int(np.round(self.data.shape[2] * 1.2)) #stretch by 20%
+        ganglionMask = skimage.transform.resize(ganglionMask, 
+                                                [self.data.shape[1], size_x])
+
+        # and truncate back to orginal shape        
+        diff = size_x - self.data.shape[2]
+        cols_l = np.floor(diff / 2)
+        cols_r = size_x - (diff - cols_l)
+
+        i = [r for r in range(size_x) if r > cols_l and r <= cols_r]
+
+        ganglionMask = ganglionMask[:,i]        
         return(ganglionMask)
+        #return((i, cols_l, cols_r, size_x))
 
     def genEtdrsRings(self):
         """generate a mask template for etdrs regions"""
