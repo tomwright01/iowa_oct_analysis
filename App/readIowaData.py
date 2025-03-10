@@ -39,20 +39,31 @@ def readIowaSurfaces(fname):
     xml_root = xml.etree.ElementTree.parse(fname).getroot()
 
     # OCTexplorer version 3 used a <z> element for suface heights, version 4 uses <y>
+    # going to remap everything back to version 3 format
     version = xml_root.find('version').text
-    if version.startswith('3'):
+    if version.startswith('3.0'):
         value_element = 'z'
+        coord_element = 'y'
+        
+            # first lets extract the scan size information
+        scan_size = {'x': int(xml_root.find('./scan_characteristics/size/x').text),
+                     'y': int(xml_root.find('./scan_characteristics/size/y').text),
+                     'z': int(xml_root.find('./scan_characteristics/size/z').text)}
+        voxel_size = {'x': float(xml_root.find('./scan_characteristics/voxel_size/x').text),
+                      'y': float(xml_root.find('./scan_characteristics/voxel_size/y').text),
+                      'z': float(xml_root.find('./scan_characteristics/voxel_size/z').text)}
+
     else:
         value_element = 'y'
-
-
-    # first lets extract the scan size information
-    scan_size = {'x': int(xml_root.find('./scan_characteristics/size/x').text),
-                 'y': int(xml_root.find('./scan_characteristics/size/y').text),
-                 'z': int(xml_root.find('./scan_characteristics/size/z').text)}
-    voxel_size = {'x': float(xml_root.find('./scan_characteristics/voxel_size/x').text),
-                  'y': float(xml_root.find('./scan_characteristics/voxel_size/y').text),
-                  'z': float(xml_root.find('./scan_characteristics/voxel_size/z').text)}
+        coord_element = 'z'
+        # first lets extract the scan size information
+        scan_size = {'x': int(xml_root.find('./scan_characteristics/size/x').text),
+                     'y': int(xml_root.find('./scan_characteristics/size/z').text),
+                     'z': int(xml_root.find('./scan_characteristics/size/y').text)}
+        voxel_size = {'x': float(xml_root.find('./scan_characteristics/voxel_size/x').text),
+                      'y': float(xml_root.find('./scan_characteristics/voxel_size/z').text),
+                      'z': float(xml_root.find('./scan_characteristics/voxel_size/y').text)}
+        #voxel_size = {k:v*1000 for k,v in voxel_size.items()}
 
     # try to exract system information
     system = xml_root.find('./scan_characteristics/manufacturer').text.lower()
@@ -67,16 +78,9 @@ def readIowaSurfaces(fname):
     # structure to hold layer measurements
     # data in this structure is in pixels and can be used by the centering function
     nlayers = int(xml_root.find('surface_num').text)
-    if version.startswith('3'):
-        data = np.empty((nlayers,
-                         scan_size['y'],
-                         scan_size['x']),
-                        dtype=np.float)
-    else:
-        data = np.empty((nlayers,
-                         scan_size['z'],
-                         scan_size['x']),
-                        dtype=np.float)
+    data = np.empty((nlayers,
+                     scan_size['y'],
+                     scan_size['x']))
 
     p = re.compile('.*\((.*)\)')
     for surface in xml_root.findall('surface'):
@@ -106,13 +110,13 @@ def readIowaSurfaces(fname):
 
     # .xml file may also contain information on where segmentation has failed
     # create a structure to store this information
-    undef_mask = np.zeros(data.shape,dtype=np.bool)
+    undef_mask = np.zeros(data.shape,dtype=bool)
     undef_xml = xml_root.find('undefined_region')
 
     if undef_xml is not None:
         for ascan in undef_xml.findall('ascan'):
             x = int(ascan.find('x').text)
-            y = int(ascan.find('y').text)
+            y = int(ascan.find(coord_element).text)
             undef_mask[:,y,x] = True
 
     data = np.ma.MaskedArray(data, mask = undef_mask)
@@ -142,9 +146,20 @@ def readIowaCenter(fname):
     Returns:
       (center_x,center_y) - scan center in pixels
     """
+
     xml_root = xml.etree.ElementTree.parse(fname)
+    
+    version = xml_root.find('version').text
+    if version.startswith('3'):
+        value_element = 'z'
+        coord_element = 'y'
+    else:
+        value_element = 'y'
+        coord_element = 'z'
+
+
     c = xml_root.find('center')
     center_x = int(c.find('x').text)
-    center_y = int(c.find('y').text)
+    center_y = int(c.find(coord_element).text)
 
     return (center_x,center_y)

@@ -222,7 +222,7 @@ class OctLayers(object):
         pixSizeX, pixSizeY, scanSizeX, scanSizeY = self._getVoxelSize()
 
         #calculate the ring sizes in pixels
-        radius_mm = np.array([0.7,2.9],dtype=np.float) / 2 # size of rings in mm retina
+        radius_mm = np.array([inner,outer],dtype=float) / 2 # size of rings in mm retina
         radius_pix_x = radius_mm * pixSizeX
         radius_pix_y = radius_mm * pixSizeY
 
@@ -250,10 +250,10 @@ class OctLayers(object):
         s6 = theta < (-2 * np.pi / 3)
 
         # ring  mask
-        rMask = np.zeros(r2.shape,dtype=np.bool)
+        rMask = np.zeros(r2.shape,dtype=bool)
         rMask[np.logical_and(r2 > radius_mm[0]**2, r2 < radius_mm[1]**2)] = 1
 
-        ganglionMask = np.zeros(r2.shape,dtype=np.int)
+        ganglionMask = np.zeros(r2.shape,dtype=int)
 
         ganglionMask[np.logical_and(rMask,s1)] = 1 # Sector 1
         ganglionMask[np.logical_and(rMask,s2)] = 2 # Sector 1
@@ -263,9 +263,12 @@ class OctLayers(object):
         ganglionMask[np.logical_and(rMask,s6)] = 6 # Sector 1
 
         # GCLIPL mask is elipsoid so stretch on x axis
-        size_x = np.int(np.round(self.data.shape[2] * 1.2)) #stretch by 20%
+        size_x = int(np.round(self.data.shape[2] * 1.2)) #stretch by 20%
         ganglionMask = skimage.transform.resize(ganglionMask, 
-                                                [self.data.shape[1], size_x])
+                                                [self.data.shape[1], size_x],
+                                                order=0,
+                                                preserve_range=1,
+                                                anti_aliasing=0).astype(int)
 
         # and truncate back to orginal shape        
         diff = size_x - self.data.shape[2]
@@ -284,7 +287,7 @@ class OctLayers(object):
         pixSizeX, pixSizeY, scanSizeX, scanSizeY = self._getVoxelSize()
 
         #calculate the ring sizes in pixels
-        radius_mm = np.array([1,3,6],dtype=np.float) / 2
+        radius_mm = np.array([1,3,6],dtype=float) / 2
         radius_pix_x = radius_mm * pixSizeX
         radius_pix_y = radius_mm * pixSizeY
 
@@ -310,14 +313,14 @@ class OctLayers(object):
         qR=abs(theta)<np.pi*(1.0/4)
 
         # ring 1 mask
-        r1Mask = np.zeros(r2.shape,dtype=np.bool)
+        r1Mask = np.zeros(r2.shape,dtype=bool)
         r1Mask[np.logical_and(r2 > radius_mm[0]**2, r2 < radius_mm[1]**2)] = 1
 
         # ring 2 mask
-        r2Mask = np.zeros(r2.shape,dtype=np.bool)
+        r2Mask = np.zeros(r2.shape,dtype=bool)
         r2Mask[np.logical_and(r2 > radius_mm[1]**2, r2 < radius_mm[2]**2)] = 1
 
-        etdrsMask = np.zeros(r2.shape,dtype=np.int)
+        etdrsMask = np.zeros(r2.shape,dtype=int)
         etdrsMask[r2 < radius_mm[0]**2] = 1 # fovea
 
         etdrsMask[np.logical_and(r1Mask,qI)] = 2 # Inferior inner
@@ -401,13 +404,17 @@ class OctLayers(object):
         for iRegion in np.arange(1, 7):
             value = np.mean(layer[self.ganglionMask==iRegion])
             output.append(value)
-
+        # get the total ring area value
+        value = np.mean(layer[self.ganglionMask > 0])
+        output.append(value)
+        
         regions={'sector-1':output[0],
                  'sector-2':output[1],
                  'sector-3':output[2],
                  'sector-4':output[3],
                  'sector-5':output[4],
-                 'sector-6':output[5]}
+                 'sector-6':output[5],
+                 'ring':output[6]}
 
         regions = pd.Series(regions)
         return regions
@@ -483,7 +490,8 @@ class OctLayers(object):
             for surface in surfaces:
                 for i,v in enumerate(self.data[surface,frame,:]):
                     if v is not np.ma.masked:
-                        oct[oct_idx,v-2:v+2,i]=255
+                        #import pdb; pdb.set_trace()
+                        oct[oct_idx,np.int(v)-1:np.int(v)+1,np.int(i)]=255
         oct_idx = oct_idx + 1
         return oct
     def getOctLayerMask(self, surface1, surface2, mask = True):
