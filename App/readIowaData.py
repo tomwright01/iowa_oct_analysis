@@ -53,6 +53,7 @@ def readIowaSurfaces(fname):
                       'y': float(xml_root.find('./scan_characteristics/voxel_size/y').text),
                       'z': float(xml_root.find('./scan_characteristics/voxel_size/z').text)}
 
+
     else:
         value_element = 'y'
         coord_element = 'z'
@@ -64,6 +65,13 @@ def readIowaSurfaces(fname):
                       'y': float(xml_root.find('./scan_characteristics/voxel_size/z').text),
                       'z': float(xml_root.find('./scan_characteristics/voxel_size/y').text)}
         #voxel_size = {k:v*1000 for k,v in voxel_size.items()}
+
+    # compatibility with version 3.8.0
+    voxel_units = xml_root.find('./scan_characteristics/voxel_size/unit').text
+    if voxel_units == 'mm':
+        voxel_size['x'] = voxel_size['x'] * 1000
+        voxel_size['y'] = voxel_size['y'] * 1000
+        voxel_size['z'] = voxel_size['z'] * 1000
 
     # try to exract system information
     system = xml_root.find('./scan_characteristics/manufacturer').text.lower()
