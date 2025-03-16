@@ -52,7 +52,7 @@ def parseCirrusFilename(fname):
     dirname = os.path.dirname(fname)
     filename = os.path.basename(fname)
     
-    match_str = '(\d+)x(\d+)_(\d{1,2}-\d{1,2}-\d{4})_(\d{1,2}-\d{1,2}-\d{1,2})_(OS|OD)_(sn\d+)'
+    match_str = r'(\d+)x(\d+)_(\d{1,2}-\d{1,2}-\d{4})_(\d{1,2}-\d{1,2}-\d{1,2})_(OS|OD)_(sn\d+)'
     parts = re.search(match_str, filename)
     
     if parts is None:

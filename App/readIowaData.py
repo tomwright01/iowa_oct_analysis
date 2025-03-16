@@ -90,7 +90,7 @@ def readIowaSurfaces(fname):
                      scan_size['y'],
                      scan_size['x']))
 
-    p = re.compile('.*\((.*)\)')
+    p = re.compile(r'.*\((.*)\)')
     for surface in xml_root.findall('surface'):
         # identify which surface this is and assign an index
         # can't use the label in the xml file as these are not contiguous
