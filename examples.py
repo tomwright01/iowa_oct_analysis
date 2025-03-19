@@ -20,11 +20,11 @@ def etdrsThicknessExample(obj):
     thickness2 = obj.getEtdrsThickness(3,5,True)
     thickness = pd.concat([thickness1, thickness2], axis=1)
     
-    #TODO: make this a proper test
+    # TODO: make this a proper test
     # layers 0-3 should be thicker than 3-5 (except at the fovea)
     print (thickness.loc['Fovea'][0] < thickness.loc['Fovea'][1])
-    print np.all((thickness.loc[:,0] > thickness.loc[:,1])[1:])
-    print thickness
+    print (np.all((thickness.loc[:,0] > thickness.loc[:,1])[1:]))
+    print (thickness)
 
 
 def etdrsIntensityExample(obj):
@@ -34,19 +34,19 @@ def etdrsIntensityExample(obj):
     intensities2 = obj.getEtdrsIntensity(7,10,True)
     intensities = pd.concat([intensities1, intensities2], axis=1)
     
-    #TODO: make this a proper test
+    # TODO: make this a proper test
     # layers 5 -6 should be dimmer than 7 - 10
-    print np.all(intensities.loc[:,0] < intensities.loc[:,1])
-    print intensities
+    print (np.all(intensities.loc[:,0] < intensities.loc[:,1]))
+    print (intensities)
     
 
 
 if __name__=='__main__':
     plt.gray()
     
-    fname = 'Data/Sample/Cirrus/IMGExportFiles/Sample1/Macular Cube 512x128_01-01-2001_01-01-01_OS_sn41343_cube_z.img'
-    fname_layers = 'Data/Sample/Cirrus/IMGExportFiles/Sample1/Macular Cube 512x128_01-01-2001_01-01-01_OS_sn41343_cube_z/Macular Cube 512x128_01-01-2001_01-01-01_OS_sn41343_cube_z_Surfaces_Iowa.xml'
-    fname_centers = 'Data/Sample/Cirrus/IMGExportFiles/Sample1/Macular Cube 512x128_01-01-2001_01-01-01_OS_sn41343_cube_z/Macular Cube 512x128_01-01-2001_01-01-01_OS_sn41343_cube_z_GridCenter_Iowa.xml'
+    fname = 'Data/Sample/Cirrus/Sample1/Macular Cube 512x128_01-01-2001_01-01-01_OS_sn41343_cube_z.img'
+    fname_layers = 'Data/Sample/Cirrus/Sample1/Macular Cube 512x128_01-01-2001_01-01-01_OS_sn41343_cube_z/Macular Cube 512x128_01-01-2001_01-01-01_OS_sn41343_cube_z_Surfaces_Iowa.xml'
+    fname_centers = 'Data/Sample/Cirrus/Sample1/Macular Cube 512x128_01-01-2001_01-01-01_OS_sn41343_cube_z/Macular Cube 512x128_01-01-2001_01-01-01_OS_sn41343_cube_z_GridCenter_Iowa.xml'
     
     data_oct = oct.OctLayers(filename=fname_layers,
                              center_filename=fname_centers,
